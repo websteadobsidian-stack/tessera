@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tessera"
+version = "0.1.0"
+description = "Журнал событий, метрики и выгрузки для исследования командного взаимодействия в учебной ERP-среде"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+# PM4Py распространяется под AGPL v3 — держим её вне ядра (см. README, «Лицензии»).
+analysis = ["pm4py>=2.7"]
+
+[project.scripts]
+tessera = "tessera.cli:main"
+
+[tool.setuptools]
+packages = ["tessera"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
