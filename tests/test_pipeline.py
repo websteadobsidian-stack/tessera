@@ -165,3 +165,13 @@ def test_cli_end_to_end(tmp_path, capsys):
     (tmp_path / "broken.csv").write_text("case_id,activity\nA,B\n", encoding="utf-8")
     assert main(["validate", str(tmp_path / "broken.csv")]) == 1
     assert "ошибка журнала" in capsys.readouterr().err
+
+
+def test_stage_dfg_counts_rework_edges():
+    dfg = metrics.stage_dfg(REWORK_CASE)
+    edges = {(x["source"], x["target"]): x for x in dfg["edges"]}
+    assert edges[("Исполнение", "Контроль")]["count"] == 2
+    assert edges[("Контроль", "Исполнение")]["rework"] is True
+    assert edges[("Контроль", "Исполнение")]["mean_hours"] == pytest.approx(12 / 60)
+    assert dfg["starts"] == {"Анализ": 1} and dfg["ends"] == {"Сдача": 1}
+    assert {n["stage"]: n["visits"] for n in dfg["nodes"]}["Контроль"] == 2

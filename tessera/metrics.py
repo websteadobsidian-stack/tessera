@@ -252,3 +252,31 @@ def case_table(events: list[Event]) -> list[dict]:
         row.update(team_id=evs[0].team_id, session_id=evs[0].session_id, condition=evs[0].condition)
         rows.append(row)
     return rows
+
+
+def stage_dfg(events: Iterable[Event]) -> dict:
+    """Граф непосредственного следования этапов: сколько раз и за какое время задачи
+    переходили между этапами. Основа карты процесса на дебрифинге."""
+    durations: dict[tuple[str, str], list[float]] = defaultdict(list)
+    visits: Counter[str] = Counter()
+    starts: Counter[str] = Counter()
+    ends: Counter[str] = Counter()
+    for case in group_by_case(events).values():
+        stages = [e for e in case if e.activity in STAGE_INDEX]
+        if not stages:
+            continue
+        starts[stages[0].activity] += 1
+        ends[stages[-1].activity] += 1
+        visits.update(e.activity for e in stages)
+        for a, b in zip(stages, stages[1:]):
+            durations[(a.activity, b.activity)].append(_hours(a.timestamp, b.timestamp))
+    return {
+        "nodes": [{"stage": s, "visits": visits[s]} for s in STAGES],
+        "edges": [
+            {"source": a, "target": b, "count": len(v), "mean_hours": mean(v),
+             "rework": STAGE_INDEX[b] < STAGE_INDEX[a]}
+            for (a, b), v in sorted(durations.items(), key=lambda kv: (STAGE_INDEX[kv[0][0]], STAGE_INDEX[kv[0][1]]))
+        ],
+        "starts": dict(starts),
+        "ends": dict(ends),
+    }

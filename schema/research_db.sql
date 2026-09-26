@@ -41,8 +41,7 @@ CREATE TABLE research.participant (
 
 CREATE TABLE identity.participant_map (
     participant_id text PRIMARY KEY REFERENCES research.participant ON DELETE CASCADE,
-    person         text NOT NULL,                -- ФИО или логин
-    UNIQUE (person)
+    person         text NOT NULL                 -- имя, ФИО или логин
 );
 
 -- ---------------------------------------------------------------- журнал событий
@@ -110,9 +109,11 @@ CREATE TABLE research.survey_response (
     phase          text        NOT NULL CHECK (phase IN ('entry', 'pulse', 'exit')),
     instrument     text        NOT NULL,         -- 'psych_safety_7', 'nasa_tlx_raw', 'goal_clarity', ...
     item           text        NOT NULL,         -- номер или код пункта
-    value          numeric     NOT NULL,
+    value          numeric,                      -- числовой ответ (шкалы)
+    text_value     text,                         -- открытый ответ (рефлексия, обратная связь)
     answered_at    timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (participant_id, session_id, phase, instrument, item),
+    PRIMARY KEY (participant_id, team_id, session_id, phase, instrument, item),
+    CHECK ((value IS NULL) <> (text_value IS NULL)),
     FOREIGN KEY (team_id, session_id) REFERENCES research.session
 );
 
@@ -124,7 +125,7 @@ CREATE TABLE research.peer_nomination (
     session_id       text NOT NULL,
     question         text NOT NULL CHECK (question IN ('asked_for_info', 'most_useful', 'actual_leader')),
     weight           smallint NOT NULL DEFAULT 1,
-    PRIMARY KEY (from_participant, to_participant, session_id, question),
+    PRIMARY KEY (from_participant, to_participant, team_id, session_id, question),
     CHECK (from_participant <> to_participant),
     FOREIGN KEY (team_id, session_id) REFERENCES research.session
 );

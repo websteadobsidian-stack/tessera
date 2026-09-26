@@ -6,3 +6,6 @@ out/
 # Таблицы соответствия псевдонимов и реальные выгрузки не должны попадать в репозиторий.
 *mapping*.csv
 data/real/
+.env
+node_modules/
+frontend/dist/
