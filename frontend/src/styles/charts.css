@@ -1,0 +1,42 @@
+.chart { position: relative; width: 100%; }
+.chart svg { width: 100%; height: auto; overflow: visible; }
+.chart text { fill: var(--ink-2); font-family: var(--font); font-size: 12px; }
+.chart .axis-line { stroke: var(--stroke-2); }
+.chart .grid-line { stroke: var(--stroke); }
+.chart .label-strong { fill: var(--ink); font-weight: 650; }
+.chart .hit { fill: transparent; }
+.chart-scroll { overflow-x: auto; overflow-y: hidden; }
+@media (max-width: 760px) { .chart-scroll > svg { min-width: 720px; } }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--ink-2); margin-bottom: 10px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* ------------------------------------------------------------------ мозаика */
+.mosaic { display: grid; grid-template-columns: minmax(0, auto) minmax(220px, 1fr); gap: 28px; align-items: start; }
+.mosaic.solo { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 860px) { .mosaic { grid-template-columns: 1fr; } }
+.mosaic-canvas { margin: 0 auto; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.35)); }
+.mosaic-canvas svg { width: 100%; height: auto; }
+.mosaic-legend { display: flex; flex-direction: column; gap: 18px; }
+.mosaic-people { display: flex; flex-direction: column; gap: 4px; }
+.mosaic-person {
+  display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 10px; border: 1px solid transparent;
+  background: transparent; color: var(--ink); cursor: pointer; font-size: 14px; font-weight: 550; text-align: left;
+}
+.mosaic-person:hover, .mosaic-person.on { background: var(--glass-2); border-color: var(--stroke); }
+.mosaic-person .muted { margin-left: auto; }
+.mosaic-kinds { display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 12.5px; color: var(--ink-2); }
+.mosaic-kind { display: flex; align-items: center; gap: 9px; }
+.mosaic-kind svg { flex: none; }
+
+/* ------------------------------------------------------------------ сыгранность */
+.synergy { display: flex; align-items: center; gap: 18px; }
+.synergy .score { font-family: var(--display); font-weight: 600; font-size: 44px; letter-spacing: -0.05em; line-height: 1; }
+.synergy .level { font-family: var(--display); font-size: 18px; font-weight: 500; letter-spacing: -0.03em; }
+.level-steps { display: flex; gap: 4px; }
+.level-steps span { height: 6px; flex: 1; border-radius: 4px; background: var(--glass-3); }
+.level-steps span.on { background: linear-gradient(90deg, var(--accent-strong), var(--accent-2)); }
+.component-row { display: grid; grid-template-columns: 150px 1fr 44px; gap: 10px; align-items: center; font-size: 13px; }
+.component-row .bar { height: 8px; }
+
+/* ------------------------------------------------------------------ точки по условиям */
+.dotplot text { font-size: 11px; }

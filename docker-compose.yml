@@ -25,6 +25,10 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-tessera}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tessera}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?задайте ADMIN_PASSWORD в .env}
+      # Адрес для QR-кода на проекторе (например, https://tessera.example.ru). Пусто — адрес из браузера.
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      # Кнопка «Попробовать одному» на главной: 1 — показывать, 0 — скрыть.
+      TESSERA_PUBLIC_DEMO: ${TESSERA_PUBLIC_DEMO:-1}
     depends_on:
       db:
         condition: service_healthy

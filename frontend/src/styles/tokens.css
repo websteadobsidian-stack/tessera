@@ -1,0 +1,152 @@
+/* Tessera 2.0 — токены. Тёмная «ночная мозаика» по умолчанию, светлая тема — «день».
+   Цвета людей и этапов провалидированы (CVD, контраст) для обеих тем. */
+
+:root {
+  color-scheme: dark;
+
+  /* поверхности */
+  --bg: #09090d;
+  --bg-elev: #101016;
+  --glass: rgba(255, 255, 255, 0.035);
+  --glass-2: rgba(255, 255, 255, 0.06);
+  --glass-3: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.08);
+  --stroke: rgba(255, 255, 255, 0.075);
+  --stroke-2: rgba(255, 255, 255, 0.13);
+  --stroke-3: rgba(255, 255, 255, 0.22);
+  --scrim: rgba(4, 4, 8, 0.62);
+  --panel-solid: #14141b;
+
+  /* текст */
+  --ink: #f4f3ef;
+  --ink-2: #b9b8b1;
+  --ink-3: #7d7c76;
+  --ink-inverse: #0b0b10;
+
+  /* бренд */
+  --accent: #9486ff;
+  --accent-strong: #7c6cff;
+  --accent-soft: rgba(148, 134, 255, 0.14);
+  --accent-2: #4fd1bd;
+  --glow: 0 0 0 1px rgba(148, 134, 255, 0.35), 0 0 32px -4px rgba(124, 108, 255, 0.55);
+
+  /* состояния (только со значком и подписью) */
+  --good: #4cc27f;
+  --good-soft: rgba(76, 194, 127, 0.14);
+  --warn: #f0b440;
+  --warn-soft: rgba(240, 180, 64, 0.14);
+  --bad: #ff6b6b;
+  --bad-soft: rgba(255, 107, 107, 0.14);
+
+  /* люди: категориальная палитра, слоты 1–8 */
+  --p1: #3987e5;
+  --p2: #d95926;
+  --p3: #199e70;
+  --p4: #c98500;
+  --p5: #d55181;
+  --p6: #008300;
+  --p7: #9085e9;
+  --p8: #e66767;
+
+  /* этапы: порядковая шкала одного оттенка (ближе к завершению — ярче) */
+  --st-0: #33333f;
+  --st-1: #514893;
+  --st-2: #6559b0;
+  --st-3: #7b6fcb;
+  --st-4: #978be2;
+  --st-5: #bab3f6;
+
+  /* методики */
+  --cond-kanban: #3987e5;
+  --cond-sprints: #d95926;
+  --cond-hierarchy: #199e70;
+  --cond-self_org: #c98500;
+
+  /* тени */
+  --shadow-1: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 12px 40px -12px rgba(0, 0, 0, 0.7);
+  --shadow-3: 0 30px 80px -20px rgba(0, 0, 0, 0.85);
+
+  /* фон */
+  --bg-glow-1: rgba(124, 108, 255, 0.2);
+  --bg-glow-2: rgba(45, 212, 191, 0.09);
+  --bg-glow-3: rgba(213, 81, 129, 0.07);
+  --noise-opacity: 0.05;
+
+  /* форма */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+
+  --font: "Onest Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Unbounded Variable", "Onest Variable", system-ui, sans-serif;
+  --mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --topbar-h: 64px;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f2ee;
+  --bg-elev: #fbfaf7;
+  --glass: rgba(255, 255, 255, 0.62);
+  --glass-2: rgba(255, 255, 255, 0.82);
+  --glass-3: rgba(255, 255, 255, 0.95);
+  --glass-hover: rgba(20, 20, 30, 0.04);
+  --stroke: rgba(20, 20, 35, 0.08);
+  --stroke-2: rgba(20, 20, 35, 0.13);
+  --stroke-3: rgba(20, 20, 35, 0.24);
+  --scrim: rgba(24, 22, 34, 0.35);
+  --panel-solid: #ffffff;
+
+  --ink: #121218;
+  --ink-2: #4c4b55;
+  --ink-3: #807e88;
+  --ink-inverse: #fbfaf7;
+
+  --accent: #5b4bd8;
+  --accent-strong: #4a39c8;
+  --accent-soft: rgba(91, 75, 216, 0.1);
+  --accent-2: #0f8f7c;
+  --glow: 0 0 0 1px rgba(91, 75, 216, 0.3), 0 0 28px -6px rgba(91, 75, 216, 0.4);
+
+  --good: #1d7f47;
+  --good-soft: rgba(29, 127, 71, 0.1);
+  --warn: #a86400;
+  --warn-soft: rgba(168, 100, 0, 0.1);
+  --bad: #c43b3a;
+  --bad-soft: rgba(196, 59, 58, 0.1);
+
+  --p1: #2a78d6;
+  --p2: #eb6834;
+  --p3: #1baf7a;
+  --p4: #eda100;
+  --p5: #e87ba4;
+  --p6: #008300;
+  --p7: #4a3aa7;
+  --p8: #e34948;
+
+  --st-0: #dcd9e3;
+  --st-1: #a497ec;
+  --st-2: #8a7be3;
+  --st-3: #7061d6;
+  --st-4: #5849c4;
+  --st-5: #4232a8;
+
+  --cond-kanban: #2a78d6;
+  --cond-sprints: #eb6834;
+  --cond-hierarchy: #1baf7a;
+  --cond-self_org: #eda100;
+
+  --shadow-1: 0 1px 2px rgba(20, 20, 35, 0.05), 0 1px 1px rgba(20, 20, 35, 0.03);
+  --shadow-2: 0 10px 34px -12px rgba(20, 20, 35, 0.18), 0 2px 6px rgba(20, 20, 35, 0.04);
+  --shadow-3: 0 30px 70px -20px rgba(20, 20, 35, 0.35);
+
+  --bg-glow-1: rgba(124, 108, 255, 0.12);
+  --bg-glow-2: rgba(45, 212, 191, 0.08);
+  --bg-glow-3: rgba(235, 104, 52, 0.06);
+  --noise-opacity: 0.035;
+}

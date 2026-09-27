@@ -1,11 +1,14 @@
-"""API участника: вход по коду команды, согласие, опросы, доска, решения, дебрифинг."""
+"""API участника: вход по коду, согласие, опросы, брифинг, доска, стол, Эфир, помощь,
+благодарности, погода, Синхрон, ретро и разбор."""
 
 from __future__ import annotations
+
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from . import analytics, auth, content, core, views
+from . import analytics, auth, content, core, mechanics, surveys, views
 from .core import fail
 from .db import tx
 
@@ -13,7 +16,7 @@ router = APIRouter(prefix="/api")
 
 CONSENT_TEXT = [
     "Tessera — учебная среда и научное исследование командной работы.",
-    "Во время интенсива система записывает ваши действия с задачами (кто, что и когда сделал), "
+    "Во время интенсива система записывает ваши действия с задачами, решения, сообщения в Эфире, "
     "ответы на короткие опросы и анонимные оценки коллег.",
     "В исследовательской базе вы будете только кодом вида P-001. Имя, если вы его укажете, хранится отдельно, "
     "видно только вашей команде и удаляется после завершения сбора данных.",
@@ -36,6 +39,9 @@ class SurveyIn(BaseModel):
     answers: dict[str, dict[str, float]] = {}
     texts: dict[str, dict[str, str]] = {}
     nominations: dict[str, list[str]] = {}
+    mirror: dict[str, float | str | None] = {}
+    strengths: dict[str, str] = {}
+    agreements: dict[str, int] = {}
 
 
 class ActionIn(BaseModel):
@@ -58,6 +64,76 @@ class DecisionIn(BaseModel):
     case_key: str | None = Field(default=None, max_length=20)
 
 
+class FactIn(BaseModel):
+    fact_id: str
+
+
+class VoteIn(BaseModel):
+    option: str
+
+
+class FinalizeIn(BaseModel):
+    rationale: str | None = Field(default=None, max_length=1000)
+
+
+class PreferenceIn(BaseModel):
+    option: str
+    confidence: int = Field(ge=1, le=5)
+
+
+class CheckIn(BaseModel):
+    answers: dict[str, str]
+
+
+class ForecastIn(BaseModel):
+    tasks_done: int = Field(ge=0, le=50)
+    m1_on_time: bool
+    confidence: int = Field(ge=1, le=5)
+
+
+class CharterIn(BaseModel):
+    field: str
+    body: str = Field(max_length=400)
+
+
+class MessageIn(BaseModel):
+    body: str = Field(max_length=500)
+    mentions: list[str] = []
+    case_key: str | None = None
+
+
+class HelpIn(BaseModel):
+    case_key: str | None = None
+    note: str | None = Field(default=None, max_length=200)
+
+
+class KudosIn(BaseModel):
+    to: str
+    kind: str
+    note: str | None = Field(default=None, max_length=140)
+
+
+class WeatherIn(BaseModel):
+    value: int = Field(ge=1, le=4)
+
+
+class ProbeIn(BaseModel):
+    answer: str
+
+
+class CardIn(BaseModel):
+    lane: Literal["start", "stop", "continue"]
+    body: str = Field(max_length=200)
+
+
+def _ctx(conn, token: str, need: bool = True) -> core.Ctx:
+    ctx = core.participant_ctx(conn, token, need_participant=need)
+    core.seen(conn, token)
+    return ctx
+
+
+# ---------------------------------------------------------------- вход и состояние
+
 @router.post("/join")
 def join(body: JoinIn):
     code = body.code.strip().upper()
@@ -76,34 +152,20 @@ def join(body: JoinIn):
 @router.get("/p/state")
 def state(token: str = Depends(auth.bearer)):
     with tx() as conn:
-        ctx = core.participant_ctx(conn, token, need_participant=False)
+        ctx = _ctx(conn, token, need=False)
         sc = ctx.scenario
-        settings = conn.execute("SELECT label FROM app.team_settings WHERE team_id = %s",
-                                (ctx.team_id,)).fetchone()
+        s = ctx.session
         base = {
-            "team": {"team_id": ctx.team_id, "label": settings["label"], "condition": ctx.condition,
-                     "condition_title": sc["conditions"][ctx.condition]["title"]},
-            "session": views.session_public(ctx.session),
+            "team": {"team_id": ctx.team_id, "join_code": s["join_code"], "label": s["label"], "condition": ctx.condition,
+                     "condition_title": sc["conditions"][ctx.condition]["title"],
+                     "is_demo": s["is_demo"], "demo_kind": s["demo_kind"]},
+            "session": views.session_public(s),
             "company": {"title": sc["title"], "description": sc["description"]},
         }
         if ctx.participant_id is None:
             return {**base, "me": None, "consent_text": CONSENT_TEXT,
                     "roles": views.roles_availability(conn, ctx.team_id, sc)}
-        me = conn.execute(
-            """SELECT p.participant_id, p.role AS role_title, m.person AS display_name
-                 FROM research.participant p
-                 LEFT JOIN identity.participant_map m USING (participant_id)
-                WHERE p.participant_id = %s""",
-            (ctx.participant_id,),
-        ).fetchone()
-        return {
-            **base,
-            "me": {**me, "role_slug": ctx.role_slug, "is_pm": ctx.is_pm},
-            "scenario": views.scenario_public(sc, ctx.role_slug, ctx.condition),
-            "roster": views.roster(conn, ctx.team_id),
-            "survey": views.survey_status(conn, ctx.session, ctx.participant_id),
-            **views.board(conn, ctx.session, ctx.role_slug),
-        }
+        return {**base, **views.participant_state(conn, ctx)}
 
 
 @router.post("/p/consent")
@@ -121,7 +183,7 @@ def consent(body: ConsentIn, token: str = Depends(auth.bearer)):
         conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (ctx.team_id,))
         taken = conn.execute(
             """SELECT count(*) AS n FROM app.device
-                WHERE team_id = %s AND role_slug = %s AND participant_id IS NOT NULL""",
+                WHERE team_id = %s AND coalesce(orig_role_slug, role_slug) = %s AND participant_id IS NOT NULL""",
             (ctx.team_id, role["slug"]),
         ).fetchone()["n"]
         if taken >= role["capacity"]:
@@ -133,86 +195,161 @@ def consent(body: ConsentIn, token: str = Depends(auth.bearer)):
 @router.post("/p/survey")
 def survey(body: SurveyIn, token: str = Depends(auth.bearer)):
     with tx() as conn:
-        ctx = core.participant_ctx(conn, token)
-        status = views.survey_status(conn, ctx.session, ctx.participant_id)
-        if status is None:
-            fail(409, "Сейчас нет открытого опроса")
-        if status["done"]:
-            fail(409, "Вы уже ответили на этот опрос")
-        rows = []
-        for inst in status["instruments"]:
-            for item in inst["items"]:
-                if inst["type"] == "text":
-                    text = (body.texts.get(inst["id"], {}).get(item["id"]) or "").strip()
-                    if not text and not item.get("optional"):
-                        fail(422, f"Ответьте на вопрос: {item['text']}")
-                    if text:
-                        rows.append((inst["id"], item["id"], None, text[:4000]))
-                    continue
-                value = body.answers.get(inst["id"], {}).get(item["id"])
-                if value is None:
-                    fail(422, f"Ответьте на все вопросы блока «{inst['title']}»")
-                if not inst["min"] <= value <= inst["max"]:
-                    fail(422, "Ответ вне шкалы")
-                rows.append((inst["id"], item["id"], value, None))
-        for instrument, item, value, text in rows:
-            conn.execute(
-                """INSERT INTO research.survey_response (participant_id, team_id, session_id, phase,
-                                                         instrument, item, value, text_value)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-                (ctx.participant_id, ctx.team_id, ctx.session_id, ctx.session["phase"], instrument, item,
-                 value, text),
-            )
-        if status["nominations"]:
-            team = {r["participant_id"] for r in views.roster(conn, ctx.team_id)}
-            for question, targets in body.nominations.items():
-                if question not in status["nominations"]:
-                    fail(422, "Неизвестный вопрос о коллегах")
-                for to in set(targets):
-                    if to == ctx.participant_id or to not in team:
-                        continue
-                    conn.execute(
-                        """INSERT INTO research.peer_nomination (from_participant, to_participant, team_id,
-                                                                 session_id, question)
-                           VALUES (%s, %s, %s, %s, %s)""",
-                        (ctx.participant_id, to, ctx.team_id, ctx.session_id, question),
-                    )
+        surveys.submit_survey(conn, _ctx(conn, token), body.model_dump())
     return {"ok": True}
 
+
+# ---------------------------------------------------------------- доска
 
 @router.post("/p/tasks/{key}/{action}")
 def task_action(key: str, action: str, body: ActionIn | None = None, token: str = Depends(auth.bearer)):
     with tx() as conn:
-        ctx = core.participant_ctx(conn, token)
-        core.task_action(conn, ctx, key, action, (body or ActionIn()).model_dump(exclude_none=True))
+        core.task_action(conn, _ctx(conn, token), key, action, (body or ActionIn()).model_dump(exclude_none=True))
     return {"ok": True}
 
 
 @router.post("/p/milestones/{key}/close")
 def close_milestone(key: str, token: str = Depends(auth.bearer)):
     with tx() as conn:
-        core.close_milestone(conn, core.participant_ctx(conn, token), key)
+        core.close_milestone(conn, _ctx(conn, token), key)
     return {"ok": True}
 
 
 @router.post("/p/milestones/{key}/deadline")
 def shift_deadline(key: str, body: DeadlineIn, token: str = Depends(auth.bearer)):
     with tx() as conn:
-        core.shift_deadline(conn, core.participant_ctx(conn, token), key, body.minutes)
+        core.shift_deadline(conn, _ctx(conn, token), key, body.minutes)
     return {"ok": True}
 
 
 @router.post("/p/decisions")
 def decision(body: DecisionIn, token: str = Depends(auth.bearer)):
     with tx() as conn:
-        core.record_decision(conn, core.participant_ctx(conn, token), body.model_dump())
+        core.record_decision(conn, _ctx(conn, token), body.model_dump())
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- общий стол и брифинг
+
+@router.post("/p/table/facts")
+def share_fact(body: FactIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.share_fact(conn, _ctx(conn, token), body.fact_id)
+    return {"ok": True}
+
+
+@router.post("/p/table/vote")
+def vote(body: VoteIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.vote(conn, _ctx(conn, token), body.option)
+    return {"ok": True}
+
+
+@router.post("/p/table/finalize")
+def finalize(body: FinalizeIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        chosen = mechanics.finalize(conn, _ctx(conn, token), body.rationale)
+    return {"chosen": chosen}
+
+
+@router.post("/p/briefing/preference")
+def preference(body: PreferenceIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.set_preference(conn, _ctx(conn, token), body.option, body.confidence)
+    return {"ok": True}
+
+
+@router.post("/p/briefing/check")
+def check(body: CheckIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        return mechanics.answer_check(conn, _ctx(conn, token), body.answers)
+
+
+@router.post("/p/briefing/forecast")
+def forecast(body: ForecastIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.forecast(conn, _ctx(conn, token), body.tasks_done, body.m1_on_time, body.confidence)
+    return {"ok": True}
+
+
+@router.post("/p/charter")
+def charter(body: CharterIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.set_charter(conn, _ctx(conn, token), body.field, body.body)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- взаимодействие
+
+@router.post("/p/air")
+def post_message(body: MessageIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mid = mechanics.post_message(conn, _ctx(conn, token), body.body, body.mentions, body.case_key)
+    return {"message_id": mid}
+
+
+@router.post("/p/help")
+def request_help(body: HelpIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        hid = mechanics.request_help(conn, _ctx(conn, token), body.case_key, body.note)
+    return {"help_id": hid}
+
+
+@router.post("/p/help/{help_id}/answer")
+def answer_help(help_id: int, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.answer_help(conn, _ctx(conn, token), help_id)
+    return {"ok": True}
+
+
+@router.post("/p/help/{help_id}/resolve")
+def resolve_help(help_id: int, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.resolve_help(conn, _ctx(conn, token), help_id)
+    return {"ok": True}
+
+
+@router.post("/p/kudos")
+def kudos(body: KudosIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.send_kudos(conn, _ctx(conn, token), body.to, body.kind, body.note)
+    return {"ok": True}
+
+
+@router.post("/p/weather")
+def weather(body: WeatherIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.set_weather(conn, _ctx(conn, token), body.value)
+    return {"ok": True}
+
+
+@router.post("/p/probe/{probe_id}")
+def answer_probe(probe_id: int, body: ProbeIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.answer_probe(conn, _ctx(conn, token), probe_id, body.answer)
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------- ретро и разбор
+
+@router.post("/p/retro/cards")
+def retro_card(body: CardIn, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.retro_add(conn, _ctx(conn, token), body.lane, body.body)
+    return {"ok": True}
+
+
+@router.post("/p/retro/cards/{card_id}/vote")
+def retro_vote(card_id: int, token: str = Depends(auth.bearer)):
+    with tx() as conn:
+        mechanics.retro_vote(conn, _ctx(conn, token), card_id)
     return {"ok": True}
 
 
 @router.get("/p/debrief")
 def debrief(token: str = Depends(auth.bearer)):
     with tx() as conn:
-        ctx = core.participant_ctx(conn, token)
-        if ctx.session["phase"] not in ("debrief", "exit", "closed"):
+        ctx = _ctx(conn, token)
+        if ctx.session["phase"] not in views.DEBRIEF_PHASES:
             fail(409, "Разбор откроется после рабочей сессии")
-        return analytics.debrief(conn, ctx.session)
+        return analytics.debrief(conn, ctx.session, viewer=ctx.participant_id)

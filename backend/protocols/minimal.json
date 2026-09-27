@@ -1,0 +1,17 @@
+{
+  "protocol_id": "minimal",
+  "title": "Базовый (как в концепции)",
+  "description": "Только доска, ключевое решение и опросы. Два вброса в те же минуты, что и в стандартном. Подходит для самого первого пилота.",
+  "config": {
+    "work_minutes": 50, "wip_limit": 3, "sprint_minutes": 15, "time_scale": 1,
+    "mechanics": {
+      "facts": true, "vote": false, "votes_visible": false, "preference": true, "chat": false, "help": false,
+      "kudos": false, "weather": false, "probes": false, "forecast": true, "check": true, "charter": false,
+      "retro": false, "strengths": false, "mirror": false, "achievements": false, "synergy": false, "nudges": false
+    },
+    "timeline": [
+      {"minute": 18, "kind": "inject", "key": "urgent_order"},
+      {"minute": 34, "kind": "inject", "key": "budget_cut"}
+    ]
+  }
+}

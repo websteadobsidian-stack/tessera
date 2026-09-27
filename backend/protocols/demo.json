@@ -1,0 +1,22 @@
+{
+  "protocol_id": "demo",
+  "title": "Демо: быстрая сессия",
+  "description": "Все механики и подсказки, время сжато в 4 раза: рабочая сессия длится около 12 минут. Для знакомства с платформой.",
+  "config": {
+    "work_minutes": 50, "wip_limit": 3, "sprint_minutes": 15, "time_scale": 0.25,
+    "mechanics": {
+      "facts": true, "vote": true, "votes_visible": true, "preference": true, "chat": true, "help": true,
+      "kudos": true, "weather": true, "probes": true, "forecast": true, "check": true, "charter": true,
+      "retro": true, "strengths": true, "mirror": true, "achievements": true, "synergy": true, "nudges": true
+    },
+    "timeline": [
+      {"minute": 8, "kind": "probe", "key": "priority"},
+      {"minute": 14, "kind": "inject", "key": "urgent_order"},
+      {"minute": 20, "kind": "probe", "key": "budget"},
+      {"minute": 26, "kind": "silence", "minutes": 4},
+      {"minute": 32, "kind": "inject", "key": "budget_cut"},
+      {"minute": 36, "kind": "blind_spot", "target": "busiest", "minutes": 5},
+      {"minute": 42, "kind": "probe", "key": "bottleneck"}
+    ]
+  }
+}
